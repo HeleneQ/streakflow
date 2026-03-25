@@ -1,0 +1,133 @@
+const express = require("express");
+const cors = require("cors");
+const pg = require("pg");
+const dotenv = require("dotenv");
+
+dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
+
+// PostgreSQL connection
+const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+});
+
+/// Clean the dataset
+
+async function cleanup() {
+    await pool.query(`
+        DELETE FROM habit_daily_completions
+        WHERE completion_date < CURRENT_DATE - INTERVAL '7 days'
+    `);
+}
+
+cleanup();
+
+///=====================
+/// Requests
+///=====================
+
+// GET habits
+app.get("/habits", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM habits ORDER BY created_at DESC");
+        res.json(result.rows);
+    } catch(error){
+        console.error('Error fetching habits:', error);
+        res.status(500).json({ error: 'Failed to fetch habits' });
+    }
+});
+
+// CREATE habit
+app.post("/habits", async (req, res) => {
+    const { habit_name } = req.body;
+
+    if (!habit_name) {
+        return res.status(400).json({ error: "Habit name required" });
+    }
+
+    try {
+        const result = await pool.query(
+            "INSERT INTO habits (habit_name) VALUES ($1) RETURNING *",
+            [habit_name]
+        );
+        res.json(result.rows[0]);
+    } catch(error){
+        console.error('Error creating habits:', error);
+        res.status(500).json({ error: 'Failed to create habits' });
+    }
+    
+});
+
+// GET today habits
+app.get("/habits/today", async (req, res) => {
+    try{
+        const result = await pool.query(`
+            SELECT 
+            h.habit_id,
+            h.habit_name,
+            COALESCE(hdc.is_completed, false) AS done
+            FROM habits h
+            LEFT JOIN habit_daily_completions hdc
+            ON h.habit_id = hdc.habit_id
+            AND hdc.completion_date = CURRENT_DATE
+        `);
+
+        res.json(result.rows);
+    } catch(error){
+        console.error('Error fetching day habits:', error);
+        res.status(500).json({ error: 'Failed to fetch day habits' });
+    }
+});
+
+// TOGGLE completion
+app.post("/habit-completions", async (req, res) => {
+    const { habit_id, is_completed } = req.body;
+
+    try{
+        const result = await pool.query(`
+            INSERT INTO habit_daily_completions (habit_id, completion_date, is_completed)
+            VALUES ($1, CURRENT_DATE, $2)
+            ON CONFLICT (habit_id, completion_date)
+            DO UPDATE SET is_completed = EXCLUDED.is_completed
+            RETURNING *;
+        `, [habit_id, is_completed]);
+
+        res.json(result.rows[0]);
+    } catch(error){
+        console.error('Error creating completion:', error);
+        res.status(500).json({ error: 'Failed to create completion' });
+    }
+});
+
+// WEEK DATA
+app.get("/habits/week", async (req, res) => {
+    try{
+        const result = await pool.query(`
+            SELECT 
+            h.habit_id,
+            h.habit_name,
+            hdc.completion_date,
+            hdc.is_completed
+            FROM habits h
+            LEFT JOIN habit_daily_completions hdc
+            ON h.habit_id = hdc.habit_id
+            AND hdc.completion_date >= CURRENT_DATE - INTERVAL '6 days'
+        `);
+
+        res.json(result.rows);
+    } catch(error){
+        console.error('Error fetching week habits:', error);
+        res.status(500).json({ error: 'Failed to fetch week habits' });
+    }
+});
+
+app.listen(port, () => {
+  console.log("Server running on port", port);
+});

@@ -29,6 +29,9 @@
         </header>
    
         <main id="main">
+
+            <p id="error-display"></p>
+
             <article id="dashboard">
                 <h2 id="today-heading" data-role="today-date"></h2>
                 <p id="completed_habits" data-role="completion-summary"></p>
@@ -163,11 +166,6 @@
                         <p>
                             <label for="habit-name">Habit Name (required)</label>
                             <input type="text" id="habit-name" name="habit-name" maxlength="50" required>
-                        </p>
-
-                        <p>
-                            <label for="habit-description">Description (optional)</label>
-                            <textarea id="habit-description" name="habit-description" maxlength="200"></textarea>
                         </p>
 
                     </fieldset>
