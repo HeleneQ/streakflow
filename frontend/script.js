@@ -12,7 +12,7 @@
  */
 
 /* API URL */
-const API = "http://localhost:3000";
+const API = "http://localhost:5000";
 
 
 /* Get all DOM constants*/
@@ -54,7 +54,7 @@ const formMessage = document.querySelector('[data-role="form-message"]');
 
 document.addEventListener("DOMContentLoaded", () => {
   setDate();
-  loadToday();
+  fetchToday();
   loadWeek();
   loadStats();
   setupForm();
@@ -89,7 +89,7 @@ function setDate(){
 
 /* Today's Habits */
 
-async function loadToday() {
+async function fetchToday() {
   try {
     const res = await fetch(`${API}/habits/today`);
     if (!res.ok) throw new Error('Failed to fetch today habits');
@@ -143,7 +143,7 @@ async function toggleHabit(id, state) {
       })
     });
 
-    loadToday();
+    fetchToday();
     loadWeek();
     loadStats();
 
@@ -155,26 +155,46 @@ async function toggleHabit(id, state) {
 
 /* Week table */
 
+function getLocalISODate(date) {
+  const offset = date.getTimezoneOffset();
+  const adjustedDate = new Date(date.getTime() - (offset * 60 * 1000));
+  return adjustedDate.toISOString().split('T')[0];
+}
+
 async function loadWeek() {
+  /**
+   * Helper function to get a YYYY-MM-DD string using LOCAL time
+   * This prevents the "previous day" bug caused by UTC offsets.
+   */
+  const toLocalDateKey = (dateInput) => {
+    const d = new Date(dateInput);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   try {
     const res = await fetch(`${API}/habits/week`);
-  if (!res.ok) throw new Error('Failed to fetch week habits');
+    if (!res.ok) throw new Error('Failed to fetch week habits');
 
     const data = await res.json();
 
+    // Reset table content
     tableHead.innerHTML = "";
     tableBody.innerHTML = "";
 
+    // 1. Generate the last 7 days (ending with today)
     const days = [...Array(7)].map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       return d;
     });
 
-    // HEADER
-    let headRow = "<tr><th>Habit</th>";
+    // 2. Generate Table Header
+    let headRow = "<tr><th scope='col'>Habit</th>";
     days.forEach(d => {
-      headRow += `<th>${d.toLocaleDateString("en-US", {
+      headRow += `<th scope='col'>${d.toLocaleDateString("en-US", {
         weekday: "short",
         day: "numeric"
       })}</th>`;
@@ -182,47 +202,56 @@ async function loadWeek() {
     headRow += "</tr>";
     tableHead.innerHTML = headRow;
 
-    // CAPTION
-    const first = days[0].toLocaleDateString();
-    const last = days[6].toLocaleDateString();
-    tableCaption.textContent = `Habit completion from ${first} to ${last}`;
+    // 3. Update Table Caption
+    const firstDate = toLocalDateKey(days[0]);
+    const lastDate = toLocalDateKey(days[6]);
+    tableCaption.textContent = `Habit completion from ${firstDate} to ${lastDate}`;
 
-    // GROUP DATA
+    // 4. Group data by habit_id
     const grouped = {};
-
     data.forEach(row => {
       if (!grouped[row.habit_id]) {
         grouped[row.habit_id] = {
           name: row.habit_name,
-          days: {}
+          completions: {} // Format: { "2023-10-28": true }
         };
       }
 
       if (row.completion_date) {
-        grouped[row.habit_id].days[row.completion_date] = row.is_completed;
+        // Fix: Convert database date to Local Date String
+        const dateKey = toLocalDateKey(row.completion_date);
+        grouped[row.habit_id].completions[dateKey] = row.is_completed;
       }
     });
 
-    // BODY
+    // 5. Generate Table Body Rows
     Object.values(grouped).forEach(h => {
-      let row = `<tr><th scope="row">${h.name}</th>`;
+      let rowHTML = `<tr><th scope="row">${h.name}</th>`;
 
       days.forEach(d => {
-        const key = d.toISOString().split("T")[0];
-        const val = h.days[key];
+        const key = toLocalDateKey(d);
+        const status = h.completions[key];
 
-        let text = "Pending";
-        if (val === true) text = "Done";
-        if (val === false) text = "Missed";
+        let text = "Pending"; 
+        let cssClass = "status-pending";
 
-        row += `<td>${text}</td>`;
+        if (status === true) {
+          text = "Done";
+          cssClass = "status-done";
+        } else if (status === false) {
+          text = "Missed";
+          cssClass = "status-missed";
+        }
+
+        rowHTML += `<td class="${cssClass}">${text}</td>`;
       });
 
-      row += "</tr>";
-      tableBody.innerHTML += row;
+      rowHTML += "</tr>";
+      tableBody.innerHTML += rowHTML;
     });
 
-  } catch {
+  } catch (err) {
+    console.error("Error in loadWeek:", err);
     showError("Failed to load weekly data");
   }
 }
@@ -253,7 +282,7 @@ function setupForm() {
       formMessage.textContent = "Habit created!";
       createHabitForm.reset();
 
-      loadToday();
+      fetchToday();
       loadWeek();
       loadStats();
     } catch {
