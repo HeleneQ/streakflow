@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <link rel="stylesheet" href="css/style.css" />
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="Web application for tracking habits with streak system and visualization of progress">
+        <meta name="keywords" content="habits, productivity, personal development, tracking, streaks">
+        <meta name="author" content="Hélène Quernet">
+        <title>StreakFlow - Build better habits, one day at a time</title>
+    </head>
+
+    <body>
+        
+        <a href="#main">Go to Main Content</a>
+        
+        <header>
+            <h1>StreakFlow</h1>
+            <nav>
+                <a href="/semester-project/"><strong>StreakFlow Main Page</strong></a>
+                <ul>
+                    <li><a href="#dashboard">Dashboard</a></li>
+                    <li><a href="#habits">My Weekly Habits</a></li>
+                    <li><a href="#statistics">Statistics</a></li>
+                    <li><a href="#create-habit">Create Habit</a></li>
+                </ul>
+            </nav>
+        </header>
+   
+        <main id="main">
+            <article id="dashboard">
+                <h2 id="today-heading" data-role="today-date"></h2>
+                <p id="completed_habits" data-role="completion-summary"></p>
+
+                <form id="habits-form" data-role="habits-form">
+                    <fieldset>
+                        <legend>Mark today's habits as complete</legend>
+
+                        <ul id="today_habits-list" data-role="habits-list"></ul>
+                    </fieldset>
+                </form>
+
+            </article>
+
+
+            <section id="habits">
+                <h2 id="week-heading">This Week Habits</h2>
+
+                <figure>
+                    <table>
+
+                    <caption></caption>
+
+                    <thead data-role="table-head"></thead>
+
+                    <tbody data-role="table-body"></tbody>
+
+                    </table>
+
+                    <figcaption>Weekly overview showing completion status for each habit</figcaption>
+                
+                </figure>
+
+            </section>
+
+            <section id="statistics">
+                <h2 id="stats">Statistics</h2>
+
+                <section>
+                    <h3 id="global-stats-heading">Overall Progress</h3>
+                    <dl data-role="stats-list">
+
+                        <div data-stat="total-habits">
+                            <dt>Total Habits</dt>
+                            <dd data-role="total-habits">--</dd>
+                        </div>
+
+                        <div data-stat="weekly-rate">
+                            <dt>Weekly Completion Rate</dt>
+                            <dd data-role="weekly-rate">--</dd>
+                        </div>
+
+                        <div data-stat="best-streak">
+                            <dt>Best Current Streak</dt>
+                            <dd data-role="best-streak">--</dd>
+                        </div>
+
+                        <div data-stat="total-days">
+                            <dt>Total Days Tracked</dt>
+                            <dd data-role="total-days">--</dd>
+                        </div>
+
+                    </dl>
+                    
+                </section>
+
+                <section>
+
+                    <h3 id="best-habit-heading">Top Performer</h3>
+                    <dl>
+
+                        <div>
+                            <dt>Habit</dt>
+                            <dd data-role="top-name">--</dd>
+                        </div>
+
+                        <div>
+                            <dt>Current Streak</dt>
+                            <dd data-role="top-current-streak">--</dd>
+                        </div>
+
+                        <div>
+                            <dt>Best Streak</dt>
+                            <dd data-role="top-best-streak">--</dd>
+                        </div>
+
+                        <div>
+                            <dt>Completion Rate</dt>
+                            <dd data-role="top-rate">--</dd>
+                        </div>
+
+                    </dl>
+
+                </section>
+
+                <section>
+                    <h3 id="needs-attention-heading">Needs Attention</h3>
+                    
+                    <dl>
+                        <div>
+                            <dt>Habit</dt>
+                            <dd data-role="worst-name">--</dd>
+                        </div>
+
+                        <div>
+                            <dt>Current Streak</dt>
+                            <dd data-role="worst-current-streak">--</dd>
+                        </div>
+
+                        <div>
+                            <dt>Best Streak</dt>
+                            <dd data-role="worst-best-streak">--</dd>
+                        </div>
+
+                        <div>
+                            <dt>Completion Rate</dt>
+                            <dd data-role="worst-rate">--</dd>
+                        </div>
+                    </dl>
+
+                </section>
+
+            </section>
+            
+            <section id="create-habit">
+                <h2 id="new-habit">Add a new Habit</h2>
+
+                <form>
+                    <fieldset>
+                        <legend>Habit Details</legend>
+
+                        <p>
+                            <label for="habit-name">Habit Name (required)</label>
+                            <input type="text" id="habit-name" name="habit-name" maxlength="50" required>
+                        </p>
+
+                        <p>
+                            <label for="habit-description">Description (optional)</label>
+                            <textarea id="habit-description" name="habit-description" maxlength="200"></textarea>
+                        </p>
+
+                    </fieldset>
+
+                    <button type="submit">Create Habit</button>
+
+                    <!-- Feedback -->
+                    <p data-role="form-message" aria-live="polite"></p>
+
+                </form>
+
+            </section>
+        </main>
+
+        <footer>
+            <section>
+                <h2>About StreakFlow</h2>
+                <p>HabitFlow is a simple habit tracking application designed to help you build and maintain positive daily routines. Track your progress, monitor streaks, and achieve your goals.</p>
+
+                <h2>Quicks links</h2>
+                <ul>
+                    <li><a href="#dashboard">Dashboard</a></li>
+                    <li><a href="#habits">My Weekly Habits</a></li>
+                    <li><a href="#statistics">Statistics</a></li>
+                    <li><a href="#create-habit">Create Habit</a></li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Contact heading</h2>
+                <address>Questions? Reach us at <a href="mailto:support@habitflow.com">support@habitflow.com</a></address>
+            </section>
+
+            <p><small>© 2026 HabitFlow. All rights reserved.</small></p>
+        
+        </footer>
+
+        <script src="script.js"></script>
+
+    </body>
+</html>
