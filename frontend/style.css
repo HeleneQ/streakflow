@@ -377,6 +377,13 @@ footer small{
   font-weight: bold;
 }
 
+td.status-done, td.status-pending, td.status-missed {
+    transition: opacity 0.2s;
+}
+td.status-done:hover, td.status-pending:hover, td.status-missed:hover {
+    opacity: 0.7;
+}
+
 /* Toast notification styles */
 .toast-container {
   position: fixed;

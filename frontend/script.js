@@ -117,6 +117,7 @@ async function fetchToday() {
       const btn = document.createElement("button");
       btn.textContent = "Delete";
       btn.className = "delete-habit-btn";
+      btn.addEventListener("click", () => deleteHabit(h.habit_id));
 
       li.appendChild(checkbox);
       li.appendChild(label);
@@ -135,16 +136,43 @@ async function fetchToday() {
   }
 }
 
+/* Delete habit */
+
+async function deleteHabit(id) {
+  if (!confirm("Are you sure you want to delete this habit? All progress data will be lost.")) {
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/habits/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    // Refresh all UI components
+    fetchToday();
+    loadWeek();
+    loadStats();
+    
+    console.log("Habit deleted");
+    
+  } catch (err) {
+    console.error(err);
+    showError("Failed to delete the habit");
+  }
+}
+
 /* Toggle */
 
-async function toggleHabit(id, state) {
+async function toggleHabit(id, state, date=null) {
   try {
     await fetch(`${API}/habit-completions`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         habit_id: id,
-        is_completed: state
+        is_completed: state,
+        completion_date: date
       })
     });
 
@@ -217,6 +245,7 @@ async function loadWeek() {
     data.forEach(row => {
       if (!grouped[row.habit_id]) {
         grouped[row.habit_id] = {
+          id: row.habit_id,
           name: row.habit_name,
           completions: {} // Format: { "2023-10-28": true }
         };
@@ -240,8 +269,9 @@ async function loadWeek() {
 
         let text = ""; 
         let cssClass = "";
+        const isDone = status === true;
 
-        if (status === true) {
+        if (isDone) {
           text = "Done";
           cssClass = "status-done";
         } else if (key === todayKey) {
@@ -252,7 +282,11 @@ async function loadWeek() {
           cssClass = "status-missed";
         }
 
-        rowHTML += `<td class="${cssClass}">${text}</td>`;
+        rowHTML += `<td 
+          class="${cssClass}" 
+          style="cursor: pointer; user-select: none;"
+          onclick="toggleHabit(${h.id}, ${!isDone}, '${key}')"
+        >${text}</td>`;
       });
 
       rowHTML += "</tr>";
@@ -305,62 +339,129 @@ function setupForm() {
 
 async function loadStats() {
   try {
-    const res = await fetch(`${API}/habits/week`);
+    const res = await fetch(`${API}/habits/stats-all`);
+    if (!res.ok) throw new Error('Failed to fetch stats');
     const data = await res.json();
 
-    const habits = {};
+    if (data.length === 0) return;
 
+    const habitsMap = {};
+    const uniqueDaysTracked = new Set();
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // 1. Process data into a usable Map
     data.forEach(row => {
-      if (!habits[row.habit_id]) {
-        habits[row.habit_id] = {
+      if (!habitsMap[row.habit_id]) {
+        habitsMap[row.habit_id] = {
           name: row.habit_name,
-          total: 0,
-          done: 0
+          completions: [], // List of dates where is_completed was true
+          allEntries: []   // Every record for this habit
         };
       }
-
+      
       if (row.completion_date) {
-        habits[row.habit_id].total++;
-        if (row.is_completed) habits[row.habit_id].done++;
+        const dateKey = new Date(row.completion_date).toISOString().split('T')[0];
+        uniqueDaysTracked.add(dateKey);
+        
+        habitsMap[row.habit_id].allEntries.push({ date: dateKey, completed: row.is_completed });
+        if (row.is_completed) {
+          habitsMap[row.habit_id].completions.push(dateKey);
+        }
       }
     });
 
-    const list = Object.values(habits);
+    // 2. Calculate individual stats for each habit
+    const habitsList = Object.values(habitsMap).map(habit => {
+      // Sort dates descending for current streak calculation
+      const sortedDates = habit.allEntries.sort((a, b) => b.date.localeCompare(a.date));
+      
+      // Calculate Current Streak
+      let currentStreak = 0;
+      let checkDate = new Date(); // Start from today
+      
+      // If today isn't done, check if yesterday was the end of a streak
+      const doneToday = habit.completions.includes(todayStr);
+      
+      for (let i = 0; i < 1000; i++) { // Safety limit
+        const dStr = checkDate.toISOString().split('T')[0];
+        if (habit.completions.includes(dStr)) {
+          currentStreak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          // If we reach a day not completed, and it's not "today" (which might not be done yet), streak breaks
+          if (dStr !== todayStr) break; 
+          else checkDate.setDate(checkDate.getDate() - 1);
+        }
+      }
 
-    // TOTAL
-    totalHabitsEl.textContent = list.length;
+      // Calculate Best Streak
+      let bestStreak = 0;
+      let tempStreak = 0;
+      const ascDates = [...new Set(habit.completions)].sort(); // unique sorted dates
+      
+      for (let i = 0; i < ascDates.length; i++) {
+        const current = new Date(ascDates[i]);
+        const next = ascDates[i+1] ? new Date(ascDates[i+1]) : null;
+        
+        tempStreak++;
+        if (tempStreak > bestStreak) bestStreak = tempStreak;
 
-    // WEEKLY RATE
-    const avg = list.reduce((acc, h) =>
-      acc + (h.done / (h.total || 1)), 0
-    ) / (list.length || 1);
+        // If next date is not exactly 1 day ahead, reset temp
+        if (next) {
+          const diffTime = Math.abs(next - current);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (diffDays > 1) tempStreak = 0;
+        }
+      }
 
-    weeklyRateEl.textContent = Math.round(avg * 100) + "%";
+      const completionRate = habit.allEntries.length > 0 
+        ? (habit.completions.length / habit.allEntries.length) 
+        : 0;
 
-    // BEST / WORST
-    const sorted = [...list].sort(
-      (a, b) => (b.done / b.total) - (a.done / a.total)
-    );
+      return {
+        ...habit,
+        currentStreak,
+        bestStreak,
+        completionRate
+      };
+    });
 
-    const best = sorted[0];
-    const worst = sorted[sorted.length - 1];
+    // 3. Global Stats
+    totalHabitsEl.textContent = habitsList.length;
+    totalDaysEl.textContent = uniqueDaysTracked.size;
+    
+    const overallBest = Math.max(...habitsList.map(h => h.currentStreak), 0);
+    bestStreakEl.textContent = overallBest + " days";
+
+    const avgRate = habitsList.reduce((acc, h) => acc + h.completionRate, 0) / (habitsList.length || 1);
+    weeklyRateEl.textContent = Math.round(avgRate * 100) + "%";
+
+    // 4. Top Performer vs Needs Attention
+    const sortedByRate = [...habitsList].sort((a, b) => b.completionRate - a.completionRate);
+    
+    const best = sortedByRate[0];
+    const worst = sortedByRate[sortedByRate.length - 1];
 
     if (best) {
       topName.textContent = best.name;
-      topRate.textContent =
-        Math.round((best.done / best.total) * 100) + "%";
+      topCurrentStreak.textContent = best.currentStreak + " days";
+      topBestStreak.textContent = best.bestStreak + " days";
+      topRate.textContent = Math.round(best.completionRate * 100) + "%";
     }
 
     if (worst) {
       worstName.textContent = worst.name;
-      worstRate.textContent =
-        Math.round((worst.done / worst.total) * 100) + "%";
+      worstCurrentStreak.textContent = worst.currentStreak + " days";
+      worstBestStreak.textContent = worst.bestStreak + " days";
+      worstRate.textContent = Math.round(worst.completionRate * 100) + "%";
     }
 
-  } catch {
-    showError("Failed to load stats");
+  } catch (err) {
+    console.error(err);
+    showError("Failed to calculate statistics");
   }
 }
+
 
 /* Error handling */
 
