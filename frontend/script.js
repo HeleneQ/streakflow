@@ -12,7 +12,7 @@
  */
 
 /* API URL */
-const API = "http://localhost:5000";
+const API = "https://streakflow-xgoi.onrender.com";
 
 
 /* Get all DOM constants*/
