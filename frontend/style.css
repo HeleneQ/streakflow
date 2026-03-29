@@ -482,7 +482,3 @@ body.dark-mode fieldset li:hover {
 body.dark-mode figure {
   background-color: #1a1a1a;
 }
-
-/*document.querySelector('#toggle-dark').addEventListener('click', () => {
-  document.body.classList.toggle('dark-mode');
-});*/

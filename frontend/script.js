@@ -114,8 +114,13 @@ async function fetchToday() {
       const label = document.createElement("label");
       label.textContent = h.habit_name;
 
+      const btn = document.createElement("button");
+      btn.textContent = "Delete";
+      btn.className = "delete-habit-btn";
+
       li.appendChild(checkbox);
       li.appendChild(label);
+      li.appendChild(btn);
 
       todayHabitsList.appendChild(li);
 
@@ -226,19 +231,23 @@ async function loadWeek() {
 
     // 5. Generate Table Body Rows
     Object.values(grouped).forEach(h => {
+      const todayKey = toLocalDateKey(new Date());
       let rowHTML = `<tr><th scope="row">${h.name}</th>`;
 
       days.forEach(d => {
         const key = toLocalDateKey(d);
         const status = h.completions[key];
 
-        let text = "Pending"; 
-        let cssClass = "status-pending";
+        let text = ""; 
+        let cssClass = "";
 
         if (status === true) {
           text = "Done";
           cssClass = "status-done";
-        } else if (status === false) {
+        } else if (key === todayKey) {
+          text = "Pending";
+          cssClass = "status-pending";
+        } else {
           text = "Missed";
           cssClass = "status-missed";
         }
