@@ -50,6 +50,9 @@ const createHabitForm = document.querySelector('#create-habit form');
 const habitNameInput = document.getElementById('habit-name');
 const formMessage = document.querySelector('[data-role="form-message"]');
 
+const suggestBtn = document.getElementById('get-suggestions-btn');
+const suggestionsList = document.getElementById('suggestions-list');
+
 /* Init */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -86,6 +89,41 @@ function setDate(){
   });
 }
 
+/* Handle suggestions */
+
+async function fetchAISuggestions() {
+  suggestBtn.disabled = true;
+  suggestBtn.textContent = "Thinking...";
+  
+  try {
+    const res = await fetch(`${API}/habits/suggest`);
+    const suggestions = await res.json();
+    
+    suggestionsList.innerHTML = ""; // Clear old ones
+
+    suggestions.forEach(text => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "suggestion-chip";
+      chip.textContent = text;
+      
+      // When clicked, fill the input and focus it
+      chip.addEventListener("click", () => {
+        habitNameInput.value = text;
+        habitNameInput.focus();
+      });
+
+      suggestionsList.appendChild(chip);
+    });
+  } catch (err) {
+    console.error("Suggestions failed", err);
+  } finally {
+    suggestBtn.disabled = false;
+    suggestBtn.textContent = "✨ Suggest Ideas";
+  }
+}
+
+suggestBtn.addEventListener("click", fetchAISuggestions);
 
 /* Today's Habits */
 

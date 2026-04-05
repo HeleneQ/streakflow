@@ -489,3 +489,27 @@ body.dark-mode fieldset li:hover {
 body.dark-mode figure {
   background-color: #1a1a1a;
 }
+
+/*suggestion*/
+
+.suggestion-chip {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.suggestion-chip:hover {
+    background-color: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+body.dark-mode .suggestion-chip {
+    background-color: #333;
+    color: #eee;
+}

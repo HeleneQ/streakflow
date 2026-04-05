@@ -2,11 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const pg = require("pg");
 const dotenv = require("dotenv");
+const { GoogleGenerativeAI } = require("google/generative-ai");
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Middleware
 app.use(cors());
@@ -18,17 +20,6 @@ const pool = new pg.Pool({
     connectionString: process.env.DATABASE_URL,
     options: "-c timezone=Europe/Helsinki" 
 });
-
-// /// Clean the dataset
-
-// async function cleanup() {
-//     await pool.query(`
-//         DELETE FROM habit_daily_completions
-//         WHERE completion_date < CURRENT_DATE - INTERVAL '7 days'
-//     `);
-// }
-
-// cleanup();
 
 ///=====================
 /// Requests
@@ -159,6 +150,26 @@ app.get("/habits/stats-all", async (req, res) => {
     } catch (error) {
         console.error(error); // Good to log the error to your terminal
         res.status(500).json({ error: 'Failed to fetch all history' });
+    }
+});
+
+app.get("/habits/suggest", async (req,res) =>  {
+    try {
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+        const prompt = "Suggest 5 short, positive daily habit names (max 4 words each) for a habit tracker. Return ONLY a JSON array of strings. Example: ['Drink Water', 'Read 10 pages']";
+        
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+
+        const cleanedText = text.replace(/```json|```/g, "").trim();
+        const suggestions = JSON.parse(cleanedText);
+
+        res.json(suggestions);
+    } catch (error) {
+        console.error('AI Suggestion Error:', error);
+        // Fallback habits if AI fails
+        res.json(["Drink Water", "Meditation", "Exercise", "Reading", "Journaling"]);
     }
 });
 
