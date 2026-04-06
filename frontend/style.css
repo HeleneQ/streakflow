@@ -256,7 +256,6 @@ dd{
     margin:0;
 }
 
-
 /*Figures*/
 
 figure{
@@ -348,6 +347,14 @@ footer small{
   background-color: #d32f2f;
 }
 
+body.dark-mode .delete-habit-btn {
+  background-color: #8a2121;
+}
+
+body.dark-mode .delete-habit-btn:hover {
+  background-color: #621616;
+}
+
 /* Streak badge styles */
 .streak-badge {
   background-color: var(--primary-color);
@@ -374,6 +381,24 @@ footer small{
 .status-pending {
   background-color: #fff3e0;
   color: #ef6c00;
+  font-weight: bold;
+}
+
+body.dark-mode .status-done {
+  background-color: #8b9e8b;
+  color: #1c4c1f;
+  font-weight: bold;
+}
+
+body.dark-mode .status-missed {
+  background-color: #b59094;
+  color: #741717;
+  font-weight: bold;
+}
+
+body.dark-mode .status-pending {
+  background-color: #a69e91;
+  color: #904101;
   font-weight: bold;
 }
 

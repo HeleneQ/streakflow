@@ -13,7 +13,7 @@
 
 /* API URL */
 const API = "https://streakflow-xgoi.onrender.com";
-//const API = "http://localhost:5000";
+// const API = "http://localhost:5000";
 
 /* Get all DOM constants*/
 const toggleThemeBtn = document.getElementById('toggle-theme');
@@ -194,6 +194,7 @@ async function deleteHabit(id) {
     fetchToday();
     loadWeek();
     loadStats();
+    updateWelcomeMessage();
     
     console.log("Habit deleted");
     
@@ -370,6 +371,8 @@ function setupForm() {
       fetchToday();
       loadWeek();
       loadStats();
+      updateWelcomeMessage();
+
     } catch {
       formMessage.textContent = "Error creating habit";
     }
