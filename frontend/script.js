@@ -13,7 +13,7 @@
 
 /* API URL */
 const API = "https://streakflow-xgoi.onrender.com";
-
+//const API = "http://localhost:5000";
 
 /* Get all DOM constants*/
 const toggleThemeBtn = document.getElementById('toggle-theme');
@@ -53,6 +53,8 @@ const formMessage = document.querySelector('[data-role="form-message"]');
 const suggestBtn = document.getElementById('get-suggestions-btn');
 const suggestionsList = document.getElementById('suggestions-list');
 
+const aiMessageEl = document.getElementById('ai-message');
+
 /* Init */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -61,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadWeek();
   loadStats();
   setupForm();
+  updateWelcomeMessage();
 });
 
 /* Theme toggle */
@@ -91,39 +94,39 @@ function setDate(){
 
 /* Handle suggestions */
 
-async function fetchAISuggestions() {
-  suggestBtn.disabled = true;
-  suggestBtn.textContent = "Thinking...";
-  
-  try {
-    const res = await fetch(`${API}/habits/suggest`);
-    const suggestions = await res.json();
-    
-    suggestionsList.innerHTML = ""; // Clear old ones
+suggestBtn.addEventListener('click', async () => {
+    suggestBtn.disabled = true;
+    suggestBtn.textContent = "Thinking...";
+    suggestionsList.innerHTML = "";
 
-    suggestions.forEach(text => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "suggestion-chip";
-      chip.textContent = text;
-      
-      // When clicked, fill the input and focus it
-      chip.addEventListener("click", () => {
-        habitNameInput.value = text;
-        habitNameInput.focus();
-      });
+    try {
+        const res = await fetch(`${API}/habits/suggest`);
+        if (!res.ok) throw new Error("Failed to get suggestions");
+        
+        const suggestions = await res.json();
 
-      suggestionsList.appendChild(chip);
-    });
-  } catch (err) {
-    console.error("Suggestions failed", err);
-  } finally {
-    suggestBtn.disabled = false;
-    suggestBtn.textContent = "✨ Suggest Ideas";
-  }
-}
+        suggestions.forEach(text => {
+            const chip = document.createElement('button');
+            chip.type = "button";
+            chip.className = "suggestion-chip";
+            chip.textContent = `+ ${text}`;
+            
+            // When clicked, fill the input
+            chip.addEventListener('click', () => {
+                habitNameInput.value = text;
+                habitNameInput.focus();
+            });
 
-suggestBtn.addEventListener("click", fetchAISuggestions);
+            suggestionsList.appendChild(chip);
+        });
+    } catch (err) {
+        console.error(err);
+        showError("Could not load suggestions.");
+    } finally {
+        suggestBtn.disabled = false;
+        suggestBtn.textContent = "Suggest Ideas (by AI)";
+    }
+});
 
 /* Today's Habits */
 
@@ -217,6 +220,7 @@ async function toggleHabit(id, state, date=null) {
     fetchToday();
     loadWeek();
     loadStats();
+    updateWelcomeMessage();
 
   } catch {
     showError("Failed to update habit");
@@ -500,6 +504,18 @@ async function loadStats() {
   }
 }
 
+/* Display AI message */
+
+async function updateWelcomeMessage() {
+  try {
+    aiMessageEl.textContent = "Updating status..."; // Loading state
+    const res = await fetch(`${API}/habits/welcome-message`);
+    const data = await res.json();
+    aiMessageEl.textContent = data.message;
+  } catch (err) {
+    aiMessageEl.textContent = "One day at a time. You've got this!";
+  }
+}
 
 /* Error handling */
 

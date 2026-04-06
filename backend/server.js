@@ -2,13 +2,14 @@ const express = require("express");
 const cors = require("cors");
 const pg = require("pg");
 const dotenv = require("dotenv");
-const { GoogleGenerativeAI } = require("google/generative-ai");
+const Groq = require("groq-sdk"); 
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
 
 // Middleware
 app.use(cors());
@@ -153,25 +154,104 @@ app.get("/habits/stats-all", async (req, res) => {
     }
 });
 
-app.get("/habits/suggest", async (req,res) =>  {
-    try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
-        const prompt = "Suggest 5 short, positive daily habit names (max 4 words each) for a habit tracker. Return ONLY a JSON array of strings. Example: ['Drink Water', 'Read 10 pages']";
-        
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+/* get AI suggestions */
 
-        const cleanedText = text.replace(/```json|```/g, "").trim();
-        const suggestions = JSON.parse(cleanedText);
+app.get("/habits/suggest", async (req, res) => {
+    try {
+        const existingHabitsResult = await pool.query("SELECT habit_name FROM habits");
+        const existingHabits = existingHabitsResult.rows.map(h => h.habit_name);
+
+        // 3. Update the AI call logic
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a productivity coach. Return ONLY a raw JSON array of strings."
+                },
+                {
+                    role: "user",
+                    content: `A user tracks these habits: ${existingHabits.join(", ") || 'none'}. 
+                    Suggest 5 new, short, and motivating habits. 
+                    Example format: ["Drink water", "Read 5 pages"]`
+                }
+            ],
+            // Llama 3.3 70B is very fast and great at following JSON instructions
+            model: "llama-3.3-70b-versatile", 
+            temperature: 0.7,
+            // Groq supports JSON mode for more reliable parsing
+            response_format: { type: "json_object" } 
+        });
+
+        const content = chatCompletion.choices[0].message.content;
+        console.log("Raw Groq Response:", content);
+
+        const parsed = JSON.parse(content);
+        
+        // Handle cases where the AI might wrap the array in an object (e.g., { "habits": [...] })
+        const suggestions = Array.isArray(parsed) ? parsed : (parsed.habits || Object.values(parsed)[0]);
 
         res.json(suggestions);
+
     } catch (error) {
-        console.error('AI Suggestion Error:', error);
-        // Fallback habits if AI fails
-        res.json(["Drink Water", "Meditation", "Exercise", "Reading", "Journaling"]);
+        console.error('Groq AI Error:', error);
+        // Fallback
+        res.json(["Read 10 mins", "Drink Water", "Morning Stretch", "Journaling", "Meditation"]);
     }
 });
+
+
+/* Get AI Welcome Message based on today's progress */
+app.get("/habits/welcome-message", async (req, res) => {
+    try {
+        // 1. Get today's habit status from DB
+        const result = await pool.query(`
+            SELECT h.habit_name, COALESCE(hdc.is_completed, false) AS done
+            FROM habits h
+            LEFT JOIN habit_daily_completions hdc
+            ON h.habit_id = hdc.habit_id AND hdc.completion_date = CURRENT_DATE
+        `);
+
+        const habits = result.rows;
+        const total = habits.length;
+        const completed = habits.filter(h => h.done).length;
+        const pendingNames = habits.filter(h => !h.done).map(h => h.habit_name);
+
+        // 2. Prepare the AI Prompt
+        let statusContext = "";
+        if (total === 0) {
+            statusContext = "The user hasn't created any habits yet.";
+        } else if (completed === total) {
+            statusContext = `Perfect day! All ${total} habits are done.`;
+        } else {
+            statusContext = `Progress: ${completed}/${total} done. Still needs to do: ${pendingNames.join(", ")}.`;
+        }
+
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a motivating, friendly productivity coach. Give a very short (one sentence), punchy, and encouraging greeting based on the user's progress. Do not use placeholders like [User Name]. Use a bit of personality."
+                },
+                {
+                    role: "user",
+                    content: statusContext
+                }
+            ],
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.8,
+            max_tokens: 50
+        });
+
+        const message = chatCompletion.choices[0].message.content.trim();
+        res.json({ message });
+
+    } catch (error) {
+        console.error('Welcome AI Error:', error);
+        res.json({ message: "Keep pushing, you're doing great!" }); // Fallback
+    }
+});
+
+/* Server running */
 
 app.listen(port, () => {
   console.log("Server running on port", port);
